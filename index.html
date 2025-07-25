@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Art Gallery</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      color: white;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    .subtitle {
+      font-size: 1.2rem;
+      margin-bottom: 40px;
+      opacity: 0.9;
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin-top: 40px;
+    }
+
+    .art-piece {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 15px;
+      padding: 20px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .art-piece:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .art-piece h3 {
+      margin: 0 0 15px 0;
+      font-size: 1.5rem;
+    }
+
+    .art-piece p {
+      margin: 0 0 20px 0;
+      opacity: 0.8;
+      line-height: 1.6;
+    }
+
+    .art-piece a {
+      display: inline-block;
+      padding: 12px 24px;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      text-decoration: none;
+      border-radius: 25px;
+      transition: background 0.3s ease;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .art-piece a:hover {
+      background: rgba(255, 255, 255, 0.3);
+    }
+
+    .footer {
+      margin-top: 60px;
+      opacity: 0.7;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h1>Code Art Gallery</h1>
+    <p class="subtitle">Interactive digital art created with HTML, CSS, and JavaScript</p>
+
+    <div class="gallery">
+      <div class="art-piece">
+        <h3>Green Grid</h3>
+        <p>An animated grid of tree-like patterns that continuously evolves with connected 2x2 character blocks in
+          various shades of green.</p>
+        <a href="green-grid/index.html">View Artwork</a>
+      </div>
+
+      <div class="art-piece">
+        <h3>Tea Bubbles</h3>
+        <p>Interactive bubble animation with floating orbs that respond to user interaction.</p>
+        <a href="tea-bubbles/index.html">View Artwork</a>
+      </div>
+
+      <div class="art-piece">
+        <h3>Orbits</h3>
+        <p>Dynamic orbital patterns with celestial bodies moving in harmonious paths.</p>
+        <a href="orbits/index.html">View Artwork</a>
+      </div>
+
+      <div class="art-piece">
+        <h3>Tree Shadow</h3>
+        <p>Elegant tree silhouette animation with dynamic shadow effects and natural movement.</p>
+        <a href="tree-shadow/index.html">View Artwork</a>
+      </div>
+    </div>
+
+    <div class="footer">
+      <p>Created with ❤️ using HTML, CSS, and JavaScript</p>
+    </div>
+  </div>
+</body>
+
+</html>

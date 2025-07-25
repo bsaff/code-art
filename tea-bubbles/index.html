@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tea Cup Bubbles</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      position: relative;
+      width: 500px;
+      height: 500px;
+    }
+
+    .tea-cup {
+      width: 500px;
+      height: 500px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #6fae77 0%, #71c87e 50%, #3ed555 100%);
+      border: 3px solid #3a5a3f;
+      position: relative;
+      transform: perspective(1000px) rotateX(70deg);
+      transform-origin: center center;
+      box-shadow:
+        inset 0 0 50px rgba(0, 0, 0, 0.2),
+        0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .bubble {
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(186, 220, 186, 0.9) 0%, rgba(156, 190, 156, 0.6) 70%, rgba(126, 160, 126, 0.3) 100%);
+      border: 1px solid rgba(186, 220, 186, 0.4);
+      box-shadow:
+        inset 0 0 10px rgba(186, 220, 186, 0.6),
+        0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .bubble::before {
+      content: '';
+      position: absolute;
+      top: 20%;
+      left: 25%;
+      width: 30%;
+      height: 30%;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(206, 240, 206, 0.9) 0%, rgba(186, 220, 186, 0.4) 100%);
+    }
+
+    .steam {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(255, 255, 255, 0.2) 100%);
+      border-radius: 50%;
+      pointer-events: none;
+      animation: steamRise 3s ease-out infinite;
+    }
+
+    @keyframes steamRise {
+      0% {
+        opacity: 0;
+        transform: translateY(0) scale(0.5);
+      }
+
+      20% {
+        opacity: 0.8;
+        transform: translateY(-20px) scale(1);
+      }
+
+      60% {
+        opacity: 0.6;
+        transform: translateY(-60px) scale(1.2);
+      }
+
+      100% {
+        opacity: 0;
+        transform: translateY(-100px) scale(0.8);
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="tea-cup" id="teaCup"></div>
+  </div>
+
+  <script>
+    function createBubbles() {
+      const teaCup = document.getElementById('teaCup');
+      const cupCenter = { x: 250, y: 250 }; // Center of 500px circle
+      const bubbles = [];
+
+      // Generate 9 bubbles with random sizes between 5-20px
+      for (let i = 0; i < 9; i++) {
+        const size = Math.random() * 15 + 5; // 5-20px
+        bubbles.push({
+          size: size,
+          x: 0,
+          y: 0
+        });
+      }
+
+      // Sort bubbles by size (largest first) for better clustering
+      bubbles.sort((a, b) => b.size - a.size);
+
+      // Position the largest bubble at the center
+      bubbles[0].x = cupCenter.x;
+      bubbles[0].y = cupCenter.y;
+
+      // Create a more systematic approach to position bubbles
+      const positionedBubbles = [bubbles[0]];
+      const unpositionedBubbles = bubbles.slice(1);
+
+      // Function to check if a position is valid (touches at least one bubble, doesn't overlap)
+      function isValidPosition(x, y, bubbleSize, existingBubbles) {
+        // Check if it's within tea cup bounds
+        const distanceFromCenter = Math.sqrt(
+          Math.pow(x - cupCenter.x, 2) + Math.pow(y - cupCenter.y, 2)
+        );
+        if (distanceFromCenter + bubbleSize / 2 > 250) {
+          return false;
+        }
+
+        // Check if it touches at least one existing bubble
+        let touchesAny = false;
+        for (let existing of existingBubbles) {
+          const distance = Math.sqrt(
+            Math.pow(x - existing.x, 2) + Math.pow(y - existing.y, 2)
+          );
+          const minDistance = (bubbleSize + existing.size) / 2;
+
+          if (Math.abs(distance - minDistance) < 1) { // Allow small tolerance
+            touchesAny = true;
+          } else if (distance < minDistance) {
+            return false; // Overlaps
+          }
+        }
+
+        return touchesAny;
+      }
+
+      // Function to find valid positions around existing bubbles
+      function findValidPositions(bubble, existingBubbles) {
+        const validPositions = [];
+
+        for (let existing of existingBubbles) {
+          const distance = (bubble.size + existing.size) / 2;
+
+          // Try positions around this existing bubble
+          for (let angle = 0; angle < 2 * Math.PI; angle += Math.PI / 12) { // 15-degree increments
+            const x = existing.x + Math.cos(angle) * distance;
+            const y = existing.y + Math.sin(angle) * distance;
+
+            if (isValidPosition(x, y, bubble.size, existingBubbles)) {
+              validPositions.push({ x, y });
+            }
+          }
+        }
+
+        return validPositions;
+      }
+
+      // Position remaining bubbles
+      while (unpositionedBubbles.length > 0) {
+        let placed = false;
+
+        for (let i = 0; i < unpositionedBubbles.length; i++) {
+          const bubble = unpositionedBubbles[i];
+          const validPositions = findValidPositions(bubble, positionedBubbles);
+
+          if (validPositions.length > 0) {
+            // Choose the position closest to the center
+            validPositions.sort((a, b) => {
+              const distA = Math.sqrt(Math.pow(a.x - cupCenter.x, 2) + Math.pow(a.y - cupCenter.y, 2));
+              const distB = Math.sqrt(Math.pow(b.x - cupCenter.x, 2) + Math.pow(b.y - cupCenter.y, 2));
+              return distA - distB;
+            });
+
+            const bestPosition = validPositions[0];
+            bubble.x = bestPosition.x;
+            bubble.y = bestPosition.y;
+
+            positionedBubbles.push(bubble);
+            unpositionedBubbles.splice(i, 1);
+            placed = true;
+            break;
+          }
+        }
+
+        // If we can't place any bubble, try to place them with some overlap tolerance
+        if (!placed) {
+          for (let i = 0; i < unpositionedBubbles.length; i++) {
+            const bubble = unpositionedBubbles[i];
+
+            // Try to place it touching the center bubble
+            const angle = (i * Math.PI / 4); // Distribute evenly
+            const distance = (bubbles[0].size + bubble.size) / 2;
+
+            bubble.x = bubbles[0].x + Math.cos(angle) * distance;
+            bubble.y = bubbles[0].y + Math.sin(angle) * distance;
+
+            positionedBubbles.push(bubble);
+            unpositionedBubbles.splice(i, 1);
+            break;
+          }
+        }
+      }
+
+      // Create and position bubble elements
+      bubbles.forEach((bubble, index) => {
+        const bubbleElement = document.createElement('div');
+        bubbleElement.className = 'bubble';
+        bubbleElement.style.width = bubble.size + 'px';
+        bubbleElement.style.height = bubble.size + 'px';
+        bubbleElement.style.left = (bubble.x - bubble.size / 2) + 'px';
+        bubbleElement.style.top = (bubble.y - bubble.size / 2) + 'px';
+        bubbleElement.style.transition = 'all 0.1s ease-out';
+
+        teaCup.appendChild(bubbleElement);
+      });
+
+      // Store bubble data for mouse movement
+      window.bubbleData = {
+        bubbles: bubbles,
+        elements: teaCup.querySelectorAll('.bubble'),
+        clusterCenter: { x: cupCenter.x, y: cupCenter.y },
+        isMouseDown: false
+      };
+    }
+
+    // Mouse movement handler
+    function handleMouseMove(event) {
+      if (!window.bubbleData) return;
+
+      const teaCup = document.getElementById('teaCup');
+      const rect = teaCup.getBoundingClientRect();
+
+      // Account for 3D perspective transformation
+      // The cup is rotated 70 degrees, so we need to adjust mouse coordinates
+      const centerX = rect.width / 2;
+      const centerY = rect.height / 2;
+      const rawMouseX = event.clientX - rect.left;
+      const rawMouseY = event.clientY - rect.top;
+
+      // Convert from screen coordinates to cup surface coordinates
+      // Since the cup is rotated 70 degrees, the Y axis is compressed
+      const angleRad = 70 * Math.PI / 180;
+      const compressionFactor = Math.cos(angleRad);
+
+      const mouseX = centerX + (rawMouseX - centerX);
+      const mouseY = centerY + (rawMouseY - centerY) / compressionFactor;
+
+      // Calculate distance from center
+      const cupCenter = { x: 250, y: 250 };
+      const distanceFromCenter = Math.sqrt(
+        Math.pow(mouseX - cupCenter.x, 2) + Math.pow(mouseY - cupCenter.y, 2)
+      );
+
+      // Check if we're at the edge of the tea cup
+      const edgeThreshold = 240; // Much closer to the actual edge (250px radius)
+      const isNearEdge = distanceFromCenter > edgeThreshold;
+
+      const { bubbles, elements } = window.bubbleData;
+
+      if (isNearEdge) {
+        // Bubbles stick to the wall - position 5 bubbles on the wall, 4 on top
+        const wallBubbles = bubbles.slice(0, 5); // First 5 bubbles stick to wall
+        const topBubbles = bubbles.slice(5, 9); // Last 4 bubbles layer on top
+
+        // Calculate the angle to the mouse from center
+        const angle = Math.atan2(mouseY - cupCenter.y, mouseX - cupCenter.x);
+
+        // Position wall bubbles clustered together on the edge
+        let currentAngle = angle - 0.2; // Start slightly to the left of mouse
+        wallBubbles.forEach((bubble, index) => {
+          const element = elements[index];
+          if (element) {
+            // Position bubbles adjacent to each other along the wall
+            const wallDistance = 250 - bubble.size / 2;
+
+            const wallX = cupCenter.x + Math.cos(currentAngle) * wallDistance;
+            const wallY = cupCenter.y + Math.sin(currentAngle) * wallDistance;
+
+            element.style.left = (wallX - bubble.size / 2) + 'px';
+            element.style.top = (wallY - bubble.size / 2) + 'px';
+            element.style.zIndex = '1';
+
+            // Move to next position - calculate based on bubble sizes for adjacency
+            if (index < wallBubbles.length - 1) {
+              const nextBubble = wallBubbles[index + 1];
+              const combinedRadius = (bubble.size + nextBubble.size) / 2;
+              const angleIncrement = Math.asin(combinedRadius / wallDistance);
+              currentAngle += angleIncrement * 0.8; // Slightly overlap for adjacency
+            }
+          }
+        });
+
+        // Position top bubbles touching the wall bubbles
+        topBubbles.forEach((bubble, index) => {
+          const element = elements[index + 5];
+          if (element) {
+            // Find the closest wall bubble to position this top bubble
+            const wallBubbleIndex = Math.min(index, wallBubbles.length - 1);
+            const wallBubble = wallBubbles[wallBubbleIndex];
+            const wallElement = elements[wallBubbleIndex];
+
+            if (wallElement) {
+              // Get the wall bubble's position
+              const wallLeft = parseFloat(wallElement.style.left) + wallBubble.size / 2;
+              const wallTop = parseFloat(wallElement.style.top) + wallBubble.size / 2;
+
+              // Calculate the angle from center to wall bubble
+              const wallAngle = Math.atan2(wallTop - cupCenter.y, wallLeft - cupCenter.x);
+
+              // Position top bubble touching the wall bubble with a small gap
+              const combinedRadius = (bubble.size + wallBubble.size) / 2;
+              const gap = 2; // Small gap between bubbles
+              const topDistance = 250 - combinedRadius - gap; // Distance from center to touching point
+
+              const topX = cupCenter.x + Math.cos(wallAngle) * topDistance;
+              const topY = cupCenter.y + Math.sin(wallAngle) * topDistance;
+
+              element.style.left = (topX - bubble.size / 2) + 'px';
+              element.style.top = (topY - bubble.size / 2) + 'px';
+              element.style.zIndex = '2'; // Higher z-index to appear on top
+            }
+          }
+        });
+      } else {
+        // Normal cluster movement when not near edge
+        const maxDistance = 200;
+        let targetX = mouseX;
+        let targetY = mouseY;
+
+        if (distanceFromCenter > maxDistance) {
+          const angle = Math.atan2(mouseY - cupCenter.y, mouseX - cupCenter.x);
+          targetX = cupCenter.x + Math.cos(angle) * maxDistance;
+          targetY = cupCenter.y + Math.sin(angle) * maxDistance;
+        }
+
+        // Update cluster center
+        window.bubbleData.clusterCenter = { x: targetX, y: targetY };
+
+        // Move all bubbles as a cluster
+        const originalCenter = { x: 250, y: 250 };
+
+        bubbles.forEach((bubble, index) => {
+          const element = elements[index];
+          if (element) {
+            const relativeX = bubble.x - originalCenter.x;
+            const relativeY = bubble.y - originalCenter.y;
+
+            const newX = targetX + relativeX;
+            const newY = targetY + relativeY;
+
+            // Ensure bubble stays within tea cup bounds
+            const bubbleDistanceFromCenter = Math.sqrt(
+              Math.pow(newX - cupCenter.x, 2) + Math.pow(newY - cupCenter.y, 2)
+            );
+            const maxBubbleDistance = 250 - bubble.size / 2;
+
+            let finalX = newX;
+            let finalY = newY;
+
+            if (bubbleDistanceFromCenter + bubble.size / 2 > maxBubbleDistance) {
+              const scale = maxBubbleDistance / (bubbleDistanceFromCenter + bubble.size / 2);
+              finalX = cupCenter.x + (newX - cupCenter.x) * scale;
+              finalY = cupCenter.y + (newY - cupCenter.y) * scale;
+            }
+
+            element.style.left = (finalX - bubble.size / 2) + 'px';
+            element.style.top = (finalY - bubble.size / 2) + 'px';
+            element.style.zIndex = '1';
+          }
+        });
+      }
+    }
+
+    // Mouse down handler
+    function handleMouseDown(event) {
+      if (!window.bubbleData) return;
+      window.bubbleData.isMouseDown = true;
+    }
+
+    // Mouse up handler
+    function handleMouseUp(event) {
+      if (!window.bubbleData) return;
+      window.bubbleData.isMouseDown = false;
+    }
+
+    // Steam effect functions
+    function createSteamParticle() {
+      const teaCup = document.getElementById('teaCup');
+      const steam = document.createElement('div');
+      steam.className = 'steam';
+
+      // Random position within the tea cup area
+      const angle = Math.random() * 2 * Math.PI;
+      const distance = Math.random() * 200 + 50; // Between 50-250px from center
+      const x = 250 + Math.cos(angle) * distance;
+      const y = 250 + Math.sin(angle) * distance;
+
+      steam.style.left = x + 'px';
+      steam.style.top = y + 'px';
+
+      // Randomize animation duration and delay
+      const duration = 2 + Math.random() * 2; // 2-4 seconds
+      const delay = Math.random() * 2; // 0-2 seconds delay
+      steam.style.animationDuration = duration + 's';
+      steam.style.animationDelay = delay + 's';
+
+      teaCup.appendChild(steam);
+
+      // Remove steam particle after animation
+      setTimeout(() => {
+        if (steam.parentNode) {
+          steam.parentNode.removeChild(steam);
+        }
+      }, (duration + delay) * 1000);
+    }
+
+    function startSteamEffect() {
+      // Create steam particles periodically
+      setInterval(createSteamParticle, 200); // New steam particle every 200ms
+    }
+
+    // Initialize bubbles and mouse tracking when page loads
+    window.addEventListener('load', () => {
+      createBubbles();
+      startSteamEffect();
+
+      const teaCup = document.getElementById('teaCup');
+      teaCup.addEventListener('mousemove', handleMouseMove);
+      teaCup.addEventListener('mousedown', handleMouseDown);
+      document.addEventListener('mouseup', handleMouseUp);
+    });
+  </script>
+</body>
+
+</html>

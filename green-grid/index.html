@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Character Grid</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background-color: #f0f0f0;
+      font-family: Arial, sans-serif;
+    }
+
+    #container {
+      text-align: center;
+    }
+
+    canvas {
+      background-color: transparent;
+      display: block;
+      margin: 20px auto;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    button.secondary {
+      color: #45a049;
+      background-color: transparent;
+      border: solid 1px #45a049;
+    }
+
+    button.secondary:hover {
+      background-color: transparent;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    .info {
+      margin: 10px 0;
+      color: #666;
+    }
+
+    .controls {
+      margin: 20px 0;
+    }
+
+    .controls label {
+      margin: 0 10px;
+      color: #333;
+    }
+
+    .controls input {
+      width: 60px;
+      padding: 5px;
+      margin: 0 5px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="container">
+    <canvas id="canvas"></canvas>
+
+    <div class="controls">
+      <label>Rows: <input type="number" id="rows" value="8" min="1" max="50"></label>
+      <label>Columns: <input type="number" id="cols" value="10" min="1" max="50"></label>
+    </div>
+
+
+    <div>
+      <button onclick="generateGrid()">Generate New Pattern</button>
+      <button onclick="toggleAnimation()">Toggle Animation</button>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let animationId = null;
+    let isAnimating = true; // Animation on by default
+
+    // Grid configuration
+    let gridRows = 8;
+    let gridCols = 10;
+    const cellSize = 10;
+    const totalCharSize = 5; // 2x2 character + 3 border
+    const spacing = 1;
+    const gridSize = totalCharSize + spacing;
+
+    // Define all valid 2x2 patterns where filled squares are connected
+    const patterns = [
+      // Single square
+      [[1, 0], [0, 0]],
+      [[0, 1], [0, 0]],
+      [[0, 0], [1, 0]],
+      [[0, 0], [0, 1]],
+
+      // Two adjacent squares
+      [[1, 1], [0, 0]],
+      [[1, 0], [1, 0]],
+      [[0, 1], [0, 1]],
+      [[0, 0], [1, 1]],
+      [[1, 0], [0, 1]],
+      [[0, 1], [1, 0]],
+
+      // Three squares
+      [[1, 1], [1, 0]],
+      [[1, 1], [0, 1]],
+      [[1, 0], [1, 1]],
+      [[0, 1], [1, 1]],
+
+      // Four squares
+      [[1, 1], [1, 1]]
+    ];
+
+    function getRandomColor() {
+      const colors = [
+        // Greens - various forest foliage
+        '#228B22', // Forest Green
+        '#2E7D32', // Deep Forest Green
+        '#4CAF50', // Fresh Leaf Green
+        '#81C784'  // Light Spring Green
+      ];
+      return colors[Math.floor(Math.random() * colors.length)];
+    }
+
+    function updateCanvasSize() {
+      // Calculate canvas size based on grid dimensions
+      canvas.width = gridCols * gridSize * cellSize;
+      canvas.height = gridRows * gridSize * cellSize;
+    }
+
+    function drawCharacter(x, y, pattern, borderColor) {
+      const charSize = 2; // 2x2 character
+      const totalSize = 5; // Total size including border (2 + 3 for border)
+
+      // Draw border (3x3 around the 2x2 character)
+      ctx.fillStyle = borderColor;
+      for (let i = 0; i < totalSize; i++) {
+        for (let j = 0; j < totalSize; j++) {
+          // Only draw border cells
+          if (i === 0 || i === totalSize - 1 || j === 0 || j === totalSize - 1 ||
+            i === totalSize - 2 || j === totalSize - 2) {
+            ctx.fillRect(x + i * cellSize, y + j * cellSize, cellSize, cellSize);
+          }
+        }
+      }
+
+      // Draw character pattern (2x2 in the center)
+      ctx.fillStyle = 'black';
+      for (let i = 0; i < charSize; i++) {
+        for (let j = 0; j < charSize; j++) {
+          if (pattern[j][i] === 1) {
+            ctx.fillRect(
+              x + (i + 1) * cellSize,
+              y + (j + 1) * cellSize,
+              cellSize,
+              cellSize
+            );
+          }
+        }
+      }
+    }
+
+    function generateGrid() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw grid of characters
+      for (let row = 0; row < gridRows; row++) {
+        for (let col = 0; col < gridCols; col++) {
+          const x = col * gridSize * cellSize;
+          const y = row * gridSize * cellSize;
+          const pattern = patterns[Math.floor(Math.random() * patterns.length)];
+          const borderColor = getRandomColor();
+          drawCharacter(x, y, pattern, borderColor);
+        }
+      }
+    }
+
+    function updateGrid() {
+      const rowsInput = document.getElementById('rows');
+      const colsInput = document.getElementById('cols');
+
+      gridRows = parseInt(rowsInput.value) || 10;
+      gridCols = parseInt(colsInput.value) || 10;
+
+      // Clamp values to reasonable limits
+      gridRows = Math.max(1, Math.min(50, gridRows));
+      gridCols = Math.max(1, Math.min(50, gridCols));
+
+      rowsInput.value = gridRows;
+      colsInput.value = gridCols;
+
+      updateCanvasSize();
+      generateGrid();
+    }
+
+    function animate() {
+      generateGrid();
+      animationId = setTimeout(() => {
+        if (isAnimating) {
+          animate();
+        }
+      }, 1000); // Change pattern every second
+    }
+
+    function toggleAnimation() {
+      isAnimating = !isAnimating;
+      if (isAnimating) {
+        animate();
+      } else if (animationId) {
+        clearTimeout(animationId);
+      }
+    }
+
+    // Add event listeners for automatic grid updates
+    document.getElementById('rows').addEventListener('input', updateGrid);
+    document.getElementById('cols').addEventListener('input', updateGrid);
+
+    // Initialize
+    updateCanvasSize();
+    generateGrid();
+    animate(); // Start animation immediately
+  </script>
+</body>
+
+</html>
