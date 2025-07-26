@@ -22,6 +22,7 @@
       background-color: transparent;
       display: block;
       margin: 20px auto;
+      cursor: pointer;
     }
 
     button {
@@ -80,7 +81,6 @@
       <label>Columns: <input type="number" id="cols" value="10" min="1" max="50"></label>
     </div>
 
-
     <div>
       <button onclick="generateGrid()">Generate New Pattern</button>
       <button onclick="toggleAnimation()">Toggle Animation</button>
@@ -100,6 +100,17 @@
     const totalCharSize = 5; // 2x2 character + 3 border
     const spacing = 1;
     const gridSize = totalCharSize + spacing;
+
+    // Store character positions for click detection
+    let characterPositions = [];
+
+    // Store current grid state for spreading effect
+    let currentGrid = [];
+    let isSpreading = false;
+    let spreadQueue = [];
+    let spreadPattern = null;
+    let spreadColor = null;
+    let visited = new Set(); // Track visited cells during spread
 
     // Define all valid 2x2 patterns where filled squares are connected
     const patterns = [
@@ -148,6 +159,9 @@
       const charSize = 2; // 2x2 character
       const totalSize = 5; // Total size including border (2 + 3 for border)
 
+      // Clear the area first
+      ctx.clearRect(x, y, totalSize * cellSize, totalSize * cellSize);
+
       // Draw border (3x3 around the 2x2 character)
       ctx.fillStyle = borderColor;
       for (let i = 0; i < totalSize; i++) {
@@ -178,15 +192,155 @@
 
     function generateGrid() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      characterPositions = []; // Clear previous character positions
+      currentGrid = []; // Clear current grid state
 
       // Draw grid of characters
       for (let row = 0; row < gridRows; row++) {
+        currentGrid[row] = [];
         for (let col = 0; col < gridCols; col++) {
           const x = col * gridSize * cellSize;
           const y = row * gridSize * cellSize;
           const pattern = patterns[Math.floor(Math.random() * patterns.length)];
           const borderColor = getRandomColor();
           drawCharacter(x, y, pattern, borderColor);
+
+          // Store character position for click detection (only the actual character area, not including spacing)
+          characterPositions.push({
+            x: x,
+            y: y,
+            width: totalCharSize * cellSize,
+            height: totalCharSize * cellSize,
+            row: row,
+            col: col
+          });
+
+          // Store current grid state
+          currentGrid[row][col] = {
+            pattern: pattern,
+            color: borderColor
+          };
+        }
+      }
+    }
+
+    function arraysEqual(a, b) {
+      if (!a || !b) return false;
+      if (a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) {
+        if (!a[i] || !b[i]) return false;
+        if (a[i].length !== b[i].length) return false;
+        for (let j = 0; j < a[i].length; j++) {
+          if (a[i][j] !== b[i][j]) return false;
+        }
+      }
+      return true;
+    }
+
+    function getAdjacentCells(row, col) {
+      const adjacent = [];
+      const directions = [
+        [-1, 0], [1, 0], [0, -1], [0, 1] // up, down, left, right
+      ];
+
+      for (let [dr, dc] of directions) {
+        const newRow = row + dr;
+        const newCol = col + dc;
+        if (newRow >= 0 && newRow < gridRows && newCol >= 0 && newCol < gridCols) {
+          adjacent.push([newRow, newCol]);
+        }
+      }
+      return adjacent;
+    }
+
+    function deepCopyPattern(pattern) {
+      return pattern.map(row => [...row]);
+    }
+
+    function startSpread(row, col) {
+      if (isSpreading) return; // Prevent multiple spreads
+
+      isSpreading = true;
+      spreadPattern = deepCopyPattern(currentGrid[row][col].pattern);
+      spreadColor = currentGrid[row][col].color;
+      spreadQueue = [[row, col]];
+      visited = new Set();
+      visited.add(`${row},${col}`);
+
+      // Stop the regular animation
+      if (animationId) {
+        clearTimeout(animationId);
+        animationId = null;
+      }
+
+      // Start the spread animation
+      spreadStep();
+    }
+
+    function spreadStep() {
+      if (spreadQueue.length === 0) {
+        // Spread complete
+        isSpreading = false;
+        // Resume animation if it was on
+        if (isAnimating) {
+          animate();
+        }
+        return;
+      }
+
+      const currentBatch = [...spreadQueue];
+      spreadQueue = [];
+
+      // Process current batch
+      for (let [row, col] of currentBatch) {
+        // Update the grid state
+        currentGrid[row][col] = {
+          pattern: deepCopyPattern(spreadPattern),
+          color: spreadColor
+        };
+
+        // Redraw this character
+        const x = col * gridSize * cellSize;
+        const y = row * gridSize * cellSize;
+        drawCharacter(x, y, spreadPattern, spreadColor);
+
+        // Add adjacent cells to next batch
+        const adjacent = getAdjacentCells(row, col);
+        for (let [adjRow, adjCol] of adjacent) {
+          const key = `${adjRow},${adjCol}`;
+
+          // Skip if already visited
+          if (visited.has(key)) continue;
+
+          // Check if this cell has a different pattern or color
+          const currentCell = currentGrid[adjRow][adjCol];
+          const isDifferent = !arraysEqual(currentCell.pattern, spreadPattern) ||
+            currentCell.color !== spreadColor;
+
+          if (isDifferent) {
+            visited.add(key);
+            spreadQueue.push([adjRow, adjCol]);
+          }
+        }
+      }
+
+      // Continue to next step after a delay
+      setTimeout(spreadStep, 150); // 150ms delay between steps
+    }
+
+    function handleCanvasClick(event) {
+      if (isSpreading) return; // Ignore clicks during spread
+
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+
+      // Check if click is within any character
+      for (let char of characterPositions) {
+        if (x >= char.x && x <= char.x + char.width &&
+          y >= char.y && y <= char.y + char.height) {
+          startSpread(char.row, char.col);
+          return;
         }
       }
     }
@@ -210,9 +364,11 @@
     }
 
     function animate() {
+      if (isSpreading) return; // Don't animate during spread
+
       generateGrid();
       animationId = setTimeout(() => {
-        if (isAnimating) {
+        if (isAnimating && !isSpreading) {
           animate();
         }
       }, 1000); // Change pattern every second
@@ -220,16 +376,20 @@
 
     function toggleAnimation() {
       isAnimating = !isAnimating;
-      if (isAnimating) {
+      if (isAnimating && !isSpreading) {
         animate();
       } else if (animationId) {
         clearTimeout(animationId);
+        animationId = null;
       }
     }
 
     // Add event listeners for automatic grid updates
     document.getElementById('rows').addEventListener('input', updateGrid);
     document.getElementById('cols').addEventListener('input', updateGrid);
+
+    // Add click event listener to canvas
+    canvas.addEventListener('click', handleCanvasClick);
 
     // Initialize
     updateCanvasSize();
